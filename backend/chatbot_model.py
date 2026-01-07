@@ -55,13 +55,30 @@ def detect_intent(q):
 
 def detect_subject(q):
     q = q.lower()
-    if any(w in q for w in ["deadlock", "paging", "cpu", "process"]):
+
+    if any(w in q for w in [
+        "cyber", "security", "attack", "malware", "virus",
+        "hacking", "phishing", "firewall", "encryption"
+    ]):
+        return "Cyber Security"
+
+    if any(w in q for w in [
+        "deadlock", "paging", "cpu", "process", "thread"
+    ]):
         return "Operating Systems"
-    if any(w in q for w in ["dbms", "sql", "normalization"]):
+
+    if any(w in q for w in [
+        "dbms", "sql", "normalization", "transaction"
+    ]):
         return "DBMS"
-    if any(w in q for w in ["python", "class", "inheritance"]):
+
+    if any(w in q for w in [
+        "python", "class", "inheritance", "function"
+    ]):
         return "Programming"
+
     return "General Studies"
+
 
 # ---------------- ANSWER EXPANSION ----------------
 def expand_answer(text):
@@ -74,6 +91,9 @@ def expand_answer(text):
         f"🎯 **Exam Tip:**\n"
         f"Definition + one example is enough for full marks."
     )
+
+# ---------------- MAIN CHATBOT ----------------
+# ...existing code...
 
 # ---------------- MAIN CHATBOT ----------------
 def get_response(user_input):
@@ -97,15 +117,25 @@ def get_response(user_input):
     if max(ds_score, pdf_score) < 0.2:
         return "🤔 I’m not confident about this question. Please rephrase it."
 
-    if pdf_score > ds_score and pdf_index is not None:
+    subject = detect_subject(user_input)
+
+    # Cyber Security → PDF ONLY
+    if subject == "Cyber Security" and pdf_index is not None:
         base_answer = pdf_chunks[pdf_index]
         source = "College Notes (PDF)"
-    else:
+
+    # Other subjects → Dataset
+    elif ds_score >= 0.3:
         base_answer = answers[ds_index]
         source = "Prepared Dataset"
 
+    else:
+        return (
+            "🤔 I could not find a confident answer for this question.\n\n"
+            "Please ask from the syllabus topics or rephrase your question."
+        )
+
     intent = detect_intent(user_input)
-    subject = detect_subject(user_input)
 
     if intent == "definition":
         response = base_answer
