@@ -18,22 +18,22 @@ st.write("Ask your study-related questions below.")
 # Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "last_topic" not in st.session_state:
+    st.session_state.last_topic = ""
+
 
 user_input = st.text_input("Your question:")
 
 if st.button("Ask"):
     if user_input.strip():
+
+        # remember last topic
+        st.session_state.last_topic = user_input
+
         bot_reply = get_response(user_input)
 
-        # Save conversation
-        st.session_state.chat_history.append(
-            ("You", user_input)
-        )
-        st.session_state.chat_history.append(
-            ("Bot", bot_reply)
-        )
-    else:
-        st.warning("Please enter a question.")
+        st.session_state.chat_history.append(("You", user_input))
+        st.session_state.chat_history.append(("Bot", bot_reply))
 # 
 # Display chat history
 for sender, message in st.session_state.chat_history:
