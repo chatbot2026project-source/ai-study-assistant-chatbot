@@ -8,7 +8,7 @@ BACKEND_PATH = os.path.abspath(
 )
 sys.path.append(BACKEND_PATH)
 
-from chatbot_model import get_response
+from backend.chatbot_model import get_response
 
 st.set_page_config(page_title="AI Study Assistant", page_icon="📘")
 
