@@ -2,7 +2,7 @@ import streamlit as st
 import sys
 import os
 
-# Backend path setup
+# Backend path setup (MUST be before import)
 BACKEND_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "backend")
 )
