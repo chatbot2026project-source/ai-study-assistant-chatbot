@@ -1,14 +1,7 @@
 import streamlit as st
-import sys
-import os
-
-# Backend path setup (MUST be before import)
-BACKEND_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "backend")
-)
-sys.path.append(BACKEND_PATH)
 
 from backend.chatbot_model import get_response
+
 
 st.set_page_config(page_title="AI Study Assistant", page_icon="📘")
 
