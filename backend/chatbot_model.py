@@ -41,11 +41,20 @@ dataset_vectors = dataset_vectorizer.fit_transform(cleaned_questions)
 # --------------------------------------------------
 # LOAD & PROCESS PDF
 # --------------------------------------------------
-pdf_text = extract_text_from_pdf(PDF_PATH)
-pdf_chunks = chunk_text(pdf_text, chunk_size=120)
+pdf_chunks = []
+pdf_vectors = None
+pdf_vectorizer = None
 
-pdf_vectorizer = TfidfVectorizer()
-pdf_vectors = pdf_vectorizer.fit_transform(pdf_chunks)
+pdf_text = extract_text_from_pdf(PDF_PATH)
+
+if pdf_text:
+    pdf_chunks = chunk_text(pdf_text)
+
+    if pdf_chunks:
+        pdf_vectorizer = TfidfVectorizer()
+        pdf_vectors = pdf_vectorizer.fit_transform(pdf_chunks)
+
+
 
 # --------------------------------------------------
 # INTENT DETECTION

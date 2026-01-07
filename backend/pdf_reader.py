@@ -7,9 +7,11 @@ except ImportError:
 
 
 def extract_text_from_pdf(pdf_path):
+    # If pdfplumber is not available
     if pdfplumber is None:
         return ""
 
+    # If PDF file does not exist
     if not os.path.exists(pdf_path):
         return ""
 
@@ -23,6 +25,9 @@ def extract_text_from_pdf(pdf_path):
 
 
 def chunk_text(text, chunk_size=120):
+    if not text:
+        return []
+
     words = text.split()
     chunks = []
 
