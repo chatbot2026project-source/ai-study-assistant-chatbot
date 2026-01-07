@@ -1,7 +1,15 @@
 import streamlit as st
+import sys
+import os
 
-from backend.chatbot_model import get_response
+# Force backend folder into Python path (Streamlit-safe)
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
 
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+from chatbot_model import get_response
 
 st.set_page_config(page_title="AI Study Assistant", page_icon="📘")
 
