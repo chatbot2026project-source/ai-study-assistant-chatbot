@@ -1,7 +1,18 @@
-import pdfplumber
 import os
 
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
+
 def extract_text_from_pdf(pdf_path):
+    if pdfplumber is None:
+        return ""
+
+    if not os.path.exists(pdf_path):
+        return ""
+
     text = ""
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
@@ -11,12 +22,11 @@ def extract_text_from_pdf(pdf_path):
     return text
 
 
-def chunk_text(text, chunk_size=500):
+def chunk_text(text, chunk_size=120):
     words = text.split()
     chunks = []
 
     for i in range(0, len(words), chunk_size):
-        chunk = " ".join(words[i:i + chunk_size])
-        chunks.append(chunk)
+        chunks.append(" ".join(words[i:i + chunk_size]))
 
     return chunks
