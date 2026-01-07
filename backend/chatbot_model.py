@@ -12,7 +12,7 @@ from pdf_reader import extract_text_from_pdf, chunk_text
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATA_PATH = os.path.join(BASE_DIR, "..", "data", "study_data.csv")
-PDF_PATH = os.path.join(BASE_DIR, "..", "data", "pdfs", "CYBER SECURITY [UNIT I -V] - 23ITU503 (1).pdf")
+PDF_PATH = os.path.join(BASE_DIR, "..", "data", "pdfs", "CYBER_SECURITY.pdf")
 
 # --------------------------------------------------
 # LOAD DATASET (CSV)
