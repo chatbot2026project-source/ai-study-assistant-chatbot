@@ -1,30 +1,57 @@
 import pandas as pd
 import os
+import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import string
 
+from pdf_reader import extract_text_from_pdf, chunk_text
+
+# --------------------------------------------------
+# PATH SETUP (Cloud Safe)
+# --------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "..", "data", "study_data.csv")
 
+DATA_PATH = os.path.join(BASE_DIR, "..", "data", "study_data.csv")
+PDF_PATH = os.path.join(BASE_DIR, "..", "data", "pdfs", "CYBER SECURITY [UNIT I -V] - 23ITU503 (1).pdf")
+
+# --------------------------------------------------
+# LOAD DATASET (CSV)
+# --------------------------------------------------
 data = pd.read_csv(DATA_PATH)
 
-questions = data["question"].values
-answers = data["answer"].values
+questions = data["question"].astype(str).values
+answers = data["answer"].astype(str).values
 
+# --------------------------------------------------
+# TEXT CLEANING
+# --------------------------------------------------
 def clean_text(text):
     text = text.lower()
-    text = text.translate(str.maketrans('', '', string.punctuation))
+    text = text.translate(str.maketrans("", "", string.punctuation))
     return text
 
 cleaned_questions = [clean_text(q) for q in questions]
 
-vectorizer = TfidfVectorizer()
-question_vectors = vectorizer.fit_transform(cleaned_questions)
+# --------------------------------------------------
+# TF-IDF FOR DATASET
+# --------------------------------------------------
+dataset_vectorizer = TfidfVectorizer()
+dataset_vectors = dataset_vectorizer.fit_transform(cleaned_questions)
 
+# --------------------------------------------------
+# LOAD & PROCESS PDF
+# --------------------------------------------------
+pdf_text = extract_text_from_pdf(PDF_PATH)
+pdf_chunks = chunk_text(pdf_text, chunk_size=120)
+
+pdf_vectorizer = TfidfVectorizer()
+pdf_vectors = pdf_vectorizer.fit_transform(pdf_chunks)
+
+# --------------------------------------------------
+# INTENT DETECTION
+# --------------------------------------------------
 def detect_intent(question):
     q = question.lower()
-
     if q.startswith("what is") or q.startswith("define"):
         return "definition"
     elif q.startswith("explain") or q.startswith("describe"):
@@ -36,67 +63,100 @@ def detect_intent(question):
     else:
         return "general"
 
+# --------------------------------------------------
+# SUBJECT DETECTION
+# --------------------------------------------------
 def detect_subject(question):
     q = question.lower()
-
-    if "deadlock" in q or "paging" in q or "cpu" in q:
+    if any(word in q for word in ["deadlock", "paging", "cpu", "process", "thread"]):
         return "Operating Systems"
-    elif "sql" in q or "dbms" in q or "normalization" in q:
+    elif any(word in q for word in ["dbms", "sql", "normalization", "transaction"]):
         return "DBMS"
-    elif "python" in q or "class" in q or "inheritance" in q:
+    elif any(word in q for word in ["python", "class", "inheritance", "function"]):
         return "Programming"
     else:
         return "General Studies"
-    
+
+# --------------------------------------------------
+# ANSWER EXPANSION (SMART PART)
+# --------------------------------------------------
+def expand_answer(base_answer):
+    return (
+        f"{base_answer}\n\n"
+        f"📌 **In simple words:**\n"
+        f"This concept explains how systems manage resources and operations.\n\n"
+        f"🧠 **Why it is important:**\n"
+        f"It helps students understand system behavior, performance, and problem solving.\n\n"
+        f"📝 **Example:**\n"
+        f"Consider a real-world situation where multiple users share limited resources.\n\n"
+        f"🎯 **Exam Tip:**\n"
+        f"This is a frequently asked topic. Write definition + one example in exams."
+    )
+
+# --------------------------------------------------
+# MAIN CHATBOT FUNCTION
+# --------------------------------------------------
 def get_response(user_input):
     user_input_clean = clean_text(user_input)
-    user_vector = vectorizer.transform([user_input_clean])
 
-    similarity = cosine_similarity(user_vector, question_vectors)
-    best_match_index = similarity.argmax()
-    confidence = similarity[0][best_match_index]
+    # ----- DATASET SIMILARITY -----
+    dataset_user_vector = dataset_vectorizer.transform([user_input_clean])
+    dataset_similarity = cosine_similarity(dataset_user_vector, dataset_vectors)
+    ds_index = dataset_similarity.argmax()
+    ds_score = dataset_similarity[0][ds_index]
 
-    if confidence < 0.2:
+    # ----- PDF SIMILARITY -----
+    pdf_user_vector = pdf_vectorizer.transform([user_input_clean])
+    pdf_similarity = cosine_similarity(pdf_user_vector, pdf_vectors)
+    pdf_index = pdf_similarity.argmax()
+    pdf_score = pdf_similarity[0][pdf_index]
+
+    # ----- LOW CONFIDENCE CHECK -----
+    if max(ds_score, pdf_score) < 0.2:
         return (
-            "I'm not confident about this question yet 🤔.\n"
+            "🤔 I’m not confident about this question.\n\n"
             "Please try rephrasing it or ask from your syllabus topics."
         )
 
-    answer = answers[best_match_index]
+    # ----- SELECT BEST SOURCE -----
+    if pdf_score > ds_score:
+        base_answer = pdf_chunks[pdf_index]
+        source = "College Notes (PDF)"
+    else:
+        base_answer = answers[ds_index]
+        source = "Prepared Dataset"
+
     intent = detect_intent(user_input)
     subject = detect_subject(user_input)
 
+    # ----- RESPONSE FORMAT BASED ON INTENT -----
     if intent == "definition":
-        return f"📘 **Definition:**\n{answer}"
+        response = f"📘 **Definition:**\n{base_answer}"
 
     elif intent == "explanation":
-        return (
-            f"🧠 **Detailed Explanation:**\n"
-            f"{answer}\n\n"
-            f"👉 This concept is very important for exams."
-        )
+        response = expand_answer(base_answer)
 
     elif intent == "reason":
-        return (
-            f"❓ **Why does this happen?**\n"
-            f"{answer}\n\n"
-            f"This occurs due to system design and resource usage."
+        response = (
+            f"❓ **Reason:**\n"
+            f"{base_answer}\n\n"
+            f"This happens due to resource dependency and system design."
         )
 
     elif intent == "comparison":
-        return (
+        response = (
             f"🔍 **Comparison Insight:**\n"
-            f"{answer}\n\n"
-            f"If you want, I can explain with a table."
+            f"{base_answer}\n\n"
+            f"I can also explain this using a comparison table."
         )
 
     else:
-        return (
-            f"🤖 **Here’s what you need to know:**\n"
-            f"{answer}\n\n"
-            f"Ask me if you want a simpler explanation."
-        )
+        response = expand_answer(base_answer)
 
-
-
-
+    # ----- FINAL RESPONSE -----
+    return (
+        f"📚 **Subject:** {subject}\n"
+        f"📖 **Source:** {source}\n\n"
+        f"{response}\n\n"
+        f"Ask me if you want this explained more simply or in exam format."
+    )
