@@ -4,15 +4,13 @@ import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from pdf_reader import extract_text_from_pdf, chunk_text
-
-# ---------------- PATH SETUP ----------------
+# ---------------- PATH ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "..", "data", "study_data.csv")
-PDF_PATH = os.path.join(BASE_DIR, "..", "data", "pdfs", "Operating_System_Notes.pdf")
 
 # ---------------- LOAD DATASET ----------------
 data = pd.read_csv(DATA_PATH)
+
 questions = data["question"].astype(str).values
 answers = data["answer"].astype(str).values
 
@@ -24,22 +22,11 @@ def clean_text(text):
 
 cleaned_questions = [clean_text(q) for q in questions]
 
-dataset_vectorizer = TfidfVectorizer()
-dataset_vectors = dataset_vectorizer.fit_transform(cleaned_questions)
+# ---------------- TF-IDF ----------------
+vectorizer = TfidfVectorizer()
+question_vectors = vectorizer.fit_transform(cleaned_questions)
 
-# ---------------- LOAD PDF SAFELY ----------------
-pdf_chunks = []
-pdf_vectors = None
-pdf_vectorizer = None
-
-pdf_text = extract_text_from_pdf(PDF_PATH)
-if pdf_text:
-    pdf_chunks = chunk_text(pdf_text)
-    if pdf_chunks:
-        pdf_vectorizer = TfidfVectorizer()
-        pdf_vectors = pdf_vectorizer.fit_transform(pdf_chunks)
-
-# ---------------- INTENT & SUBJECT ----------------
+# ---------------- INTENT ----------------
 def detect_intent(q):
     q = q.lower()
     if q.startswith("what is") or q.startswith("define"):
@@ -52,90 +39,47 @@ def detect_intent(q):
         return "comparison"
     return "general"
 
-
+# ---------------- SUBJECT ----------------
 def detect_subject(q):
     q = q.lower()
-
-    if any(w in q for w in [
-        "cyber", "security", "attack", "malware", "virus",
-        "hacking", "phishing", "firewall", "encryption"
-    ]):
-        return "Cyber Security"
-
-    if any(w in q for w in [
-        "deadlock", "paging", "cpu", "process", "thread"
-    ]):
+    if any(w in q for w in ["deadlock", "paging", "cpu", "process"]):
         return "Operating Systems"
-
-    if any(w in q for w in [
-        "dbms", "sql", "normalization", "transaction"
-    ]):
+    if any(w in q for w in ["dbms", "sql", "normalization"]):
         return "DBMS"
-
-    if any(w in q for w in [
-        "python", "class", "inheritance", "function"
-    ]):
+    if any(w in q for w in ["python", "class", "inheritance"]):
         return "Programming"
-
+    if any(w in q for w in ["cyber", "security", "attack", "malware"]):
+        return "Cyber Security"
     return "General Studies"
 
-
-# ---------------- ANSWER EXPANSION ----------------
-def expand_answer(text):
+# ---------------- EXPAND ANSWER ----------------
+def expand_answer(answer):
     return (
-        f"{text}\n\n"
+        f"{answer}\n\n"
         f"📌 **In simple terms:**\n"
-        f"This topic explains an important system concept.\n\n"
-        f"🧠 **Why it matters:**\n"
-        f"It helps in understanding how real systems work.\n\n"
+        f"This is an important concept you should understand clearly.\n\n"
         f"🎯 **Exam Tip:**\n"
-        f"Definition + one example is enough for full marks."
+        f"Write definition + one example for full marks."
     )
 
-# ---------------- MAIN CHATBOT ----------------
-# ...existing code...
-
-# ---------------- MAIN CHATBOT ----------------
+# ---------------- MAIN FUNCTION ----------------
 def get_response(user_input):
     user_input_clean = clean_text(user_input)
+    user_vector = vectorizer.transform([user_input_clean])
 
-    # Dataset similarity
-    user_vec = dataset_vectorizer.transform([user_input_clean])
-    sim = cosine_similarity(user_vec, dataset_vectors)
-    ds_index = sim.argmax()
-    ds_score = sim[0][ds_index]
+    similarity = cosine_similarity(user_vector, question_vectors)
+    best_index = similarity.argmax()
+    confidence = similarity[0][best_index]
 
-    # PDF similarity (safe)
-    pdf_score = 0
-    pdf_index = None
-    if pdf_vectors is not None:
-        pdf_vec = pdf_vectorizer.transform([user_input_clean])
-        pdf_sim = cosine_similarity(pdf_vec, pdf_vectors)
-        pdf_index = pdf_sim.argmax()
-        pdf_score = pdf_sim[0][pdf_index]
-
-    if max(ds_score, pdf_score) < 0.2:
-        return "🤔 I’m not confident about this question. Please rephrase it."
-
-    subject = detect_subject(user_input)
-
-    # Cyber Security → PDF ONLY
-    if subject == "Cyber Security" and pdf_index is not None:
-        base_answer = pdf_chunks[pdf_index]
-        source = "College Notes (PDF)"
-
-    # Other subjects → Dataset
-    elif ds_score >= 0.3:
-        base_answer = answers[ds_index]
-        source = "Prepared Dataset"
-
-    else:
+    if confidence < 0.3:
         return (
-            "🤔 I could not find a confident answer for this question.\n\n"
-            "Please ask from the syllabus topics or rephrase your question."
+            "🤔 I’m not confident about this question.\n\n"
+            "Please ask from your syllabus topics or rephrase."
         )
 
+    base_answer = answers[best_index]
     intent = detect_intent(user_input)
+    subject = detect_subject(user_input)
 
     if intent == "definition":
         response = base_answer
@@ -144,7 +88,6 @@ def get_response(user_input):
 
     return (
         f"📚 **Subject:** {subject}\n"
-        f"📖 **Source:** {source}\n\n"
-        f"{response}\n\n"
-        f"Ask if you want it simpler or more detailed."
+        f"📖 **Source:** Prepared Dataset\n\n"
+        f"{response}"
     )

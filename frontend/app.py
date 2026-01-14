@@ -2,15 +2,12 @@ import streamlit as st
 import sys
 import os
 
-# ---- FORCE BACKEND INTO PYTHON PATH (STREAMLIT SAFE) ----
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
+# Backend path (Streamlit-safe)
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
+sys.path.insert(0, BACKEND_DIR)
 
-if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
-
-from backend.chatbot_model import get_response
-
+from chatbot_model import get_response
 
 st.set_page_config(page_title="AI Study Assistant", page_icon="📘")
 
